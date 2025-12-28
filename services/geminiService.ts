@@ -3,10 +3,10 @@ import { GoogleGenAI, GenerateContentResponse } from "@google/generative-ai";
 import { SYSTEM_INSTRUCTION } from "../constants";
 
 export class GeminiService {
-  private ai: GoogleGenAI;
+  private ai: GoogleGenerativeAI;
 
   constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    this.ai = new GoogleGenerativeAI({ apiKey: process.env.API_KEY });
   }
 
   async generateSKKNContent(prompt: string, history: {role: 'user' | 'model', parts: {text: string}[]}[] = []) {
