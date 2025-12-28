@@ -1,5 +1,5 @@
 
-import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse } from "@google/generative-ai";
 import { SYSTEM_INSTRUCTION } from "../constants";
 
 export class GeminiService {
