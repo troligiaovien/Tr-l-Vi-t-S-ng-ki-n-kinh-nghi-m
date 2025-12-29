@@ -1,30 +1,33 @@
-
-import { GoogleGenAI, GenerateContentResponse } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { SYSTEM_INSTRUCTION } from "../constants";
 
 export class GeminiService {
   private ai: GoogleGenerativeAI;
 
   constructor() {
-    this.ai = new GoogleGenerativeAI({ apiKey: process.env.API_KEY });
+    // Đảm bảo trên Vercel bạn đặt tên biến là API_KEY
+    const apiKey = process.env.API_KEY || "";
+    this.ai = new GoogleGenerativeAI(apiKey);
   }
 
-  async generateSKKNContent(prompt: string, history: {role: 'user' | 'model', parts: {text: string}[]}[] = []) {
+  async generateSKKNContent(prompt: string, history: any[] = []) {
     try {
-      const chat = this.ai.models.generateContentStream({
-        model: 'gemini-3-pro-preview',
-        contents: [
-          ...history.map(h => ({ role: h.role, parts: h.parts })),
-          { role: 'user', parts: [{ text: prompt }] }
-        ],
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
+      const model = this.ai.getGenerativeModel({ 
+        model: 'gemini-1.5-pro',
+        systemInstruction: SYSTEM_INSTRUCTION 
+      });
+
+      const chat = model.startChat({
+        history: history.map(h => ({ role: h.role, parts: h.parts })),
+        generationConfig: {
           temperature: 0.65,
           topP: 0.95,
           topK: 40,
         },
       });
-      return chat;
+
+      const result = await chat.sendMessageStream(prompt);
+      return result.stream;
     } catch (error) {
       console.error("Gemini API Error:", error);
       throw error;
@@ -33,33 +36,24 @@ export class GeminiService {
 
   async extractStructureFromFile(base64Data?: string, mimeType?: string, textContent?: string): Promise<string> {
     try {
+      const model = this.ai.getGenerativeModel({ model: 'gemini-1.5-pro' });
       const parts: any[] = [];
       
       if (textContent) {
         parts.push({ text: `Nội dung văn bản được trích xuất: \n\n${textContent}` });
       } else if (base64Data && mimeType) {
         parts.push({
-          inlineData: {
-            data: base64Data,
-            mimeType: mimeType
-          }
+          inlineData: { data: base64Data, mimeType: mimeType }
         });
-      } else {
-        throw new Error("No data provided for extraction");
       }
 
       parts.push({
-        text: "Hãy trích xuất khung cấu trúc (dàn ý) của tài liệu này. Chỉ trả về các đầu mục (ví dụ: Phần I, Chương 1, Mục 1.1...). Định dạng dưới dạng văn bản thuần túy, liệt kê từ trên xuống dưới."
+        text: "Hãy trích xuất khung cấu trúc (dàn ý) của tài liệu này. Chỉ trả về các đầu mục. Định dạng văn bản thuần túy."
       });
 
-      const response: GenerateContentResponse = await this.ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: { parts },
-        config: {
-          temperature: 0.1,
-        }
-      });
-      return response.text || '';
+      const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
+      const response = await result.response;
+      return response.text();
     } catch (error) {
       console.error("Extraction Error:", error);
       throw error;
